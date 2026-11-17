@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ЩоВдягнути — поради щодо одягу за погодою</title>
+<link rel="stylesheet" href="/static/style.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+</head>
+<body>
+<header>
+  <h1>🧥 ЩоВдягнути</h1>
+  <p>Введіть місто — отримайте прогноз і поради, що вдягнути.</p>
+</header>
+
+<main>
+  <section class="card">
+    <div class="search">
+      <input id="q" type="search" placeholder="Місто, напр. Київ" autocomplete="off">
+      <button id="searchBtn">Знайти</button>
+      <button id="geoBtn" class="secondary" title="Моє місцезнаходження">📍</button>
+    </div>
+    <ul id="suggestions" class="suggestions"></ul>
+    <div class="profile">
+      <label>Активність
+        <select id="activity">
+          <option value="walk">Прогулянка</option>
+          <option value="office">Офіс / місто</option>
+          <option value="run">Біг</option>
+          <option value="cycling">Велосипед</option>
+          <option value="hiking">Похід</option>
+        </select>
+      </label>
+      <label>Чутливість до холоду
+        <select id="cold">
+          <option value="low">Мало мерзну</option>
+          <option value="normal" selected>Звичайна</option>
+          <option value="high">Дуже мерзну</option>
+        </select>
+      </label>
+    </div>
+    <div id="msg" class="msg" role="status"></div>
+    <div id="favs" class="chips"></div>
+  </section>
+
+  <section id="result" class="card hidden">
+    <div class="row">
+      <h2 id="cityName"></h2>
+      <button id="favBtn" class="secondary">☆ В улюблені</button>
+    </div>
+    <div class="weather">
+      <div class="temp"><span id="temp"></span><small id="desc"></small></div>
+      <dl>
+        <div><dt>Відчувається як</dt><dd id="feels"></dd></div>
+        <div><dt>Вітер</dt><dd id="wind"></dd></div>
+        <div><dt>Опади (ймовірн.)</dt><dd id="precip"></dd></div>
+        <div><dt>UV-індекс</dt><dd id="uv"></dd></div>
+      </dl>
+    </div>
+    <div id="days" class="days"></div>
+
+    <h3>Що вдягнути</h3>
+    <p id="summary" class="summary"></p>
+    <div class="outfit" id="outfit"></div>
+    <div class="badges" id="badges"></div>
+    <ul id="warnings" class="warnings"></ul>
+    <ul id="tips" class="tips"></ul>
+    <p class="meta" id="meta"></p>
+  </section>
+
+  <section class="card">
+    <h2>Дашборд</h2>
+    <div class="kpis" id="kpis"></div>
+    <div class="charts">
+      <div><h3>Топ міст</h3><canvas id="topChart"></canvas></div>
+      <div><h3>Запити по днях</h3><canvas id="dayChart"></canvas></div>
+    </div>
+    <h3>Історія запитів</h3>
+    <div class="table-wrap">
+      <table id="history"><thead><tr><th>Час</th><th>Місто</th><th>°C</th><th>Відчув.</th><th>Модель</th><th>мс</th></tr></thead><tbody></tbody></table>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Погода: <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a> (CC BY 4.0) ·
+  Поради: Google Gemini · <a href="/docs">API</a>
+</footer>
+<script src="/static/app.js"></script>
+</body>
+</html>
