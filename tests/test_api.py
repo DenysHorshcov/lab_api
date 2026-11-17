@@ -12,7 +12,7 @@ CITY = {"latitude": 50.45, "longitude": 30.52, "name": "Київ", "country": "�
 def mock_http(monkeypatch):
     calls = {"gemini": []}
 
-    def fake_get(url, params=None, timeout=None):
+    def fake_get(url, params=None, timeout=None, headers=None):
         if "geocoding" in url:
             if params["name"] == "Nowhere":
                 return FakeResponse(200, {})
@@ -52,9 +52,9 @@ def test_weather_parsed_and_cached(client, mock_http, monkeypatch):
     n = {"c": 0}
     orig = httpx.get
 
-    def counting(url, params=None, timeout=None):
+    def counting(url, params=None, timeout=None, headers=None):
         n["c"] += 1
-        return orig(url, params=params, timeout=timeout)
+        return orig(url, params=params, timeout=timeout, headers=headers)
 
     monkeypatch.setattr(httpx, "get", counting)
     a = client.get("/api/weather", params={"lat": 50.45, "lon": 30.52}).json()
@@ -122,3 +122,21 @@ def test_rule_advice_cold_vs_hot():
     w["today"]["uv_index"] = 9
     a = advisor.rule_based_advice(w, Profile())
     assert a.sunscreen and "футболка" in a.outfit.top
+
+
+def test_open_meteo_429_retried(client, monkeypatch):
+    n = {"c": 0}
+
+    def flaky(url, params=None, timeout=None, headers=None):
+        n["c"] += 1
+        return FakeResponse(429) if n["c"] < 3 else FakeResponse(200, GEO)
+
+    monkeypatch.setattr(httpx, "get", flaky)
+    r = client.get("/api/cities/search", params={"q": "Київ"})
+    assert r.status_code == 200 and n["c"] == 3
+
+
+def test_open_meteo_429_gives_friendly_error(client, monkeypatch):
+    monkeypatch.setattr(httpx, "get", lambda *a, **k: FakeResponse(429))
+    r = client.get("/api/cities/search", params={"q": "Київ"})
+    assert r.status_code == 502 and "забагато запитів" in r.json()["detail"]

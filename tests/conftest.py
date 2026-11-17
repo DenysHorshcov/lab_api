@@ -12,9 +12,10 @@ from app.main import app
 
 
 @pytest.fixture()
-def client():
+def client(monkeypatch):
     Base.metadata.drop_all(engine)
     weather.clear_cache()
+    monkeypatch.setattr(weather.time, "sleep", lambda s: None)
     with TestClient(app) as c:
         yield c
     Base.metadata.drop_all(engine)

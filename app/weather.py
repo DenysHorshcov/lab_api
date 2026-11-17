@@ -16,6 +16,7 @@ DAILY = (
 )
 
 _cache: dict[tuple[float, float], tuple[float, dict]] = {}
+_geo_cache: dict[str, list[dict]] = {}
 
 WMO = {
     0: "Ясно", 1: "Переважно ясно", 2: "Мінлива хмарність", 3: "Хмарно",
@@ -35,23 +36,41 @@ def describe(code: int | None) -> str:
     return WMO.get(code, "Невідомо") if code is not None else "Невідомо"
 
 
+RETRY_STATUSES = {429, 500, 502, 503, 504}
+RETRY_DELAYS = (1.0, 2.5, 5.0)  # пауза перед повторами, сек
+
+
 def _get(url: str, params: dict) -> dict:
-    try:
-        r = httpx.get(url, params=params, timeout=config.HTTP_TIMEOUT)
-        r.raise_for_status()
-        return r.json()
-    except httpx.HTTPStatusError as e:
-        raise UpstreamError("open-meteo", f"HTTP {e.response.status_code}", e.response.status_code) from e
-    except (httpx.HTTPError, ValueError) as e:
-        raise UpstreamError("open-meteo", f"недоступний: {e.__class__.__name__}") from e
+    """GET з повторами: спільні IP хостингу часто впираються в ліміт Open-Meteo (429)."""
+    last: UpstreamError | None = None
+    for attempt in range(len(RETRY_DELAYS) + 1):
+        try:
+            r = httpx.get(url, params=params, timeout=config.HTTP_TIMEOUT,
+                          headers={"User-Agent": "weather-outfit-advisor/1.0 (student project)"})
+            r.raise_for_status()
+            return r.json()
+        except httpx.HTTPStatusError as e:
+            code = e.response.status_code
+            msg = "забагато запитів, спробуйте за хвилину" if code == 429 else f"HTTP {code}"
+            last = UpstreamError("open-meteo", msg, code)
+            if code not in RETRY_STATUSES:
+                raise last from e
+        except (httpx.HTTPError, ValueError) as e:
+            last = UpstreamError("open-meteo", f"недоступний: {e.__class__.__name__}")
+        if attempt < len(RETRY_DELAYS):
+            time.sleep(RETRY_DELAYS[attempt])
+    raise last
 
 
 def search_cities(q: str, count: int = 5) -> list[dict]:
+    key = q.strip().lower()
+    if key in _geo_cache:
+        return _geo_cache[key]
     data = _get(GEOCODING_URL, {"name": q, "count": count, "language": "uk", "format": "json"})
     results = data.get("results") or []
     if not results:
         raise CityNotFound(q)
-    return [
+    found = [
         {
             "name": r["name"],
             "country": r.get("country"),
@@ -62,6 +81,8 @@ def search_cities(q: str, count: int = 5) -> list[dict]:
         }
         for r in results
     ]
+    _geo_cache[key] = found
+    return found
 
 
 def get_weather(lat: float, lon: float) -> dict:
@@ -126,3 +147,4 @@ def get_weather(lat: float, lon: float) -> dict:
 
 def clear_cache() -> None:
     _cache.clear()
+    _geo_cache.clear()
